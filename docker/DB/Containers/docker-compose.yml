@@ -1,0 +1,21 @@
+version: '3.11'
+
+networks:
+  my_network:
+    external: true
+
+services:
+  db:
+    build: .
+    image: postgres:custom
+    container_name: postgresstg
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - my_network
+      
+volumes:
+  pgdata:
