@@ -60,5 +60,5 @@
 
 ## Определение томов
 
-    - volumes:
-        - pgdata:
+    volumes:
+        pgdata:
