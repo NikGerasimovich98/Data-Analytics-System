@@ -16,8 +16,8 @@
 
 ## 2. Установка зависимостей
 
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+### COPY requirements.txt /tmp/requirements.txt
+### RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 
 ## 3. Описмание зависимостей
