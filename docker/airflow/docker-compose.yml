@@ -1,0 +1,85 @@
+version: '3.11'
+
+networks:
+  my_network:
+    external: true
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: airflow-postgres
+    networks:
+      - my_network
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airflow-webserver
+    depends_on:
+      - postgres
+    networks:
+      - my_network  
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: $AIRFLOW__CORE__FERNET_KEY
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "YOUR_SECRET_KEY"
+      AIRFLOW_UID: 50000
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+      - ./config:/opt/airflow/config
+      - airflow_logs:/opt/airflow/logs
+      - airflow_plugins:/opt/airflow/plugins
+    ports:
+      - "0.0.0.0:8080:8080"
+    command: >
+      bash -c "airflow db upgrade &&
+           airflow users create --username $ADMIN_USER --password $ADMIN_PASS --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+           airflow users create --username $GUEST_USER --password $GUEST_PASS --firstname Guest --lastname User --role Op --email guest@example.com || true &&
+           exec airflow webserver"
+    env_file:
+      - .env
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airflow-scheduler
+    depends_on:
+      - postgres
+    networks:
+      - my_network  
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: $AIRFLOW__CORE__FERNET_KEY
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "YOUR_SECRET_KEY"
+      AIRFLOW_UID: 50000
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+      - ./config:/opt/airflow/config
+      - airflow_logs:/opt/airflow/logs
+      - airflow_plugins:/opt/airflow/plugins
+    command: >
+      bash -c "airflow scheduler"
+    env_file:
+      - .env
+
+      
+volumes:
+  postgres_data:
+  airflow_logs:
+  airflow_plugins:

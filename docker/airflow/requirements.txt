@@ -1,0 +1,4 @@
+sqlparse
+pandas
+psycopg2-binary
+openpyxl
