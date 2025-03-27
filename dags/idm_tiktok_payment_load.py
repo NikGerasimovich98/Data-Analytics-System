@@ -8,6 +8,20 @@ from airflow.utils.task_group import TaskGroup
 from func.func import execute_sql_script
 
 
+def check_params(conn_id, table_name, **kwargs):
+
+    month = kwargs.get('dag_run').conf.get('month')  # Получаем параметр 'month' из dag_run.conf
+    hook = PostgresHook(postgres_conn_id=conn_id)
+
+    sql = f"SELECT COUNT(1) FROM {table_name} WHERE sheets_name = {month}"
+    result = hook.get_first(sql)
+    print(result)
+    # Проверяем, если count > 0
+    if result[0] > 0:
+        print(f"Данные для месяца {month} найдены, продолжаем выполнение DAG.")
+    else:
+        raise Exception(f"Нет данных для месяца {month}. DAG завершает выполнение.")
+
 def check_data_exists(conn_id, table_name, **kwargs):
     """
     Функция для проверки наличия данных в таблице по месяцам.
@@ -82,6 +96,14 @@ with DAG(
     end_task = EmptyOperator(task_id='end')
 
 
+    check_param = PythonOperator(
+        task_id='check_param',
+        python_callable=check_params,
+        op_args=['STG_BASE', 'stg_tiktok.bo_tiktokers'],  
+        provide_context=True,
+        dag=dag
+    )
+
     check_idm_data = BranchPythonOperator(
         task_id='check_idm_data',
         python_callable=check_data_exists,
@@ -120,9 +142,11 @@ with DAG(
 
         run_scripts_idm_short >> run_scripts_idm_full
 
-    # Определение зависимостей
-    start_task >> check_idm_data 
-    check_idm_data >> script_block >> end_task
+
+
+    start_task >> check_param
+    check_param >> check_idm_data
     check_idm_data >> clear_idm_data >> script_block >> end_task
+    check_idm_data >> script_block >> end_task
 
 
