@@ -31,7 +31,7 @@ def get_db_hook(conn_id: str):
     return hook_class(conn_id)
 
 
-def execute_sql_script(conn_id, sql_file, replace_list=None, **kwargs):
+def execute_sql_script(conn_id, sql_file, replace_list, **kwargs):
     """
     Функция для выполнения SQL скриптов из файлов с возможностью замены текста.
 
@@ -75,23 +75,28 @@ def execute_sql_script(conn_id, sql_file, replace_list=None, **kwargs):
 
     try:
         with hook.get_conn() as conn:
-            conn.set_autocommit(False)
-            
-            # Выполняем каждый запрос
-            for query in sql:
-                try:
-                    print(f"Выполнение запроса: {query}")
-                    conn.execute(query)
-                except Exception as e:
-                    print(f"Ошибка при выполнении запроса: {e}")
-                    conn.rollback()  # Откатить транзакцию в случае ошибки
-                    return
-            
-            # Фиксируем изменения
-            conn.commit()
-            print("Запросы выполнены успешно.")
+            conn.autocommit = False
+            # Создаем курсор для выполнения запросов
+            with conn.cursor() as cursor:
+                # Выполняем каждый запрос
+                for query in sql:
+                    try:
+                        print(f"Выполнение запроса: {query}")
+                        cursor.execute(query)  # Используем cursor.execute вместо conn.execute
+                    except Exception as e:
+                        print(f"Ошибка при выполнении запроса: {e}")
+                        conn.rollback()  # Откатить транзакцию в случае ошибки
+                        return
+                
+                # Фиксируем изменения
+                conn.commit()
+                print("Запросы выполнены успешно.")
     except Exception as e:
         print(f"Ошибка подключения к базе данных: {e}")
+    finally:
+        # Закрываем соединение, если оно открыто
+        if 'conn' in locals() and not conn.closed:
+            conn.close()
 
 def insert_excel_to_table(conn_id: str, excel_file: str, target_table: str, sheet_name: str = None):
     """
